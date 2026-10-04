@@ -118,6 +118,8 @@ def worker(queue: Path, gpu: str) -> None:
 
 
 def launch(jobs: list[dict], queue: Path, gpus: list[str], log_dir: Path) -> list[dict]:
+    import shutil
+    shutil.rmtree(queue, ignore_errors=True)   # hàng đợi cũ (lần chạy bị ngắt) không được ảnh hưởng
     for sub in ("pending", "claimed", "done"):
         (queue / sub).mkdir(parents=True, exist_ok=True)
     for i, j in enumerate(jobs):

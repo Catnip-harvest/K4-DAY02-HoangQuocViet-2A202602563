@@ -42,7 +42,22 @@ def _find_repo_root() -> Path:
 REPO_ROOT = _find_repo_root()
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-from eval import compute_metrics, save_predictions  # noqa: E402
+from eval import compute_metrics, read_pred  # noqa: E402
+from eval import save_predictions as _eval_save_predictions  # noqa: E402
+
+
+def save_predictions(path, filenames, y_true, probs):
+    """eval.save_predictions + kiểm tra lại bằng eval.read_pred.
+
+    eval.save_predictions ghi xác suất với 8 chữ số có nghĩa nhưng tính y_pred từ xác suất CHƯA làm tròn; nếu hai lớp
+    gần hoà (khác nhau sau chữ số thứ 8), file sẽ bị eval.py từ chối (y_pred khác argmax). Vì vậy làm tròn xác suất
+    về 8 chữ số có nghĩa TRƯỚC khi gọi, để y_pred khớp đúng giá trị được ghi; rồi đọc lại để chắc chắn hợp lệ.
+    """
+    probs = np.asarray(probs, dtype=np.float64)
+    rounded = np.array([float("%.8g" % v) for v in probs.ravel()]).reshape(probs.shape)
+    out = _eval_save_predictions(path, filenames, y_true, rounded)
+    read_pred(str(out))
+    return out
 
 
 @dataclass
