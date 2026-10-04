@@ -37,7 +37,11 @@ def build_model(name: str, pretrained: bool = True, num_classes: int = 9,
     if init not in INIT_CHOICES:
         raise ValueError(f"init phải thuộc {INIT_CHOICES}, nhận {init!r}")
     use_pretrained = pretrained and init != "scratch"
-    model = timm.create_model(name, pretrained=use_pretrained, num_classes=num_classes, drop_rate=drop_rate)
+    extra = {}
+    if name.split(".")[0].startswith(("vit_", "deit_")):
+        # cho phép đầu vào khác 224 lúc suy luận (nội suy pos-embed); ở 224 kết quả giống hệt
+        extra["dynamic_img_size"] = True
+    model = timm.create_model(name, pretrained=use_pretrained, num_classes=num_classes, drop_rate=drop_rate, **extra)
     model.weight_tag = weight_tag(model) if use_pretrained else "none (random init)"
     if head_init_std is not None:
         import torch.nn as nn

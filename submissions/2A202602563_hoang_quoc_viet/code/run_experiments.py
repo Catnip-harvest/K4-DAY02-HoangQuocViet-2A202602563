@@ -30,6 +30,8 @@ BACKBONES = [
     ("B05", "swin_tiny_patch4_window7_224.ms_in1k", "swin_tiny"),
     ("B06", "efficientnet_b0.ra_in1k", "efficientnet_b0"),
     ("B07", "mobilenetv3_large_100.ra_in1k", "mobilenetv3_large"),
+    # thêm sau phiên A: cùng kiến trúc ResNet-50 nhưng trọng số torchvision (CE, công thức cũ) thay cho a1 (BCE)
+    ("B08", "resnet50.tv_in1k", "resnet50_tv"),
 ]
 
 # Bước 2: mỗi dòng khác T00 đúng MỘT yếu tố (trục theo GUIDE.md mục 3).
@@ -66,6 +68,8 @@ def jobs_for(stage: str, common: dict, backbone: str | None, extra: dict) -> lis
                 for s in NOISE_SEEDS]
         jobs += [{**common, "exp_id": e, "backbone": backbone, "seed": 0, "desc": d, **ch}
                  for e, d, _, ch in ABLATIONS]
+        extra_bb = set(extra.get("with_backbones", []))   # backbone bổ sung chạy cùng hàng đợi
+        jobs += [{**common, "exp_id": e, "backbone": b, "desc": d, "seed": 0} for e, b, d in BACKBONES if e in extra_bb]
         return jobs
     if stage == "combo":   # extra = {"T12_desc": {overrides}, ...}
         out = []
@@ -123,7 +127,8 @@ def launch(jobs: list[dict], queue: Path, gpus: list[str], log_dir: Path) -> lis
     for g in gpus:
         log = open(log_dir / f"{queue.name}_gpu{g}.log", "w")
         procs.append((g, log, subprocess.Popen([sys.executable, "-u", __file__, "--worker", str(queue), "--gpu", g],
-                                               stdout=log, stderr=subprocess.STDOUT, cwd=str(HERE))))
+                                               stdout=log, stderr=subprocess.STDOUT, cwd=str(HERE),
+                                               env=dict(os.environ, PYTHONIOENCODING="utf-8"))))
     t0 = time.time()
     while any(p.poll() is None for _, _, p in procs):
         time.sleep(30)
@@ -133,7 +138,7 @@ def launch(jobs: list[dict], queue: Path, gpus: list[str], log_dir: Path) -> lis
     for g, log, p in procs:
         log.close()
         print(f"===== log gpu{g} (exit {p.returncode}) =====")
-        print((log_dir / f"{queue.name}_gpu{g}.log").read_text()[-20000:])
+        print((log_dir / f"{queue.name}_gpu{g}.log").read_text(encoding="utf-8", errors="replace")[-20000:])
     for f in sorted((queue / "done").glob("*.json")):
         results.append({"job": f.stem, **json.loads(f.read_text())})
     return results
