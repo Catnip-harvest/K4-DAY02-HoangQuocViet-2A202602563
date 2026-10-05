@@ -392,7 +392,13 @@ def make_figures(fig_dir, bb, tr, inf_df, lat, groups, names, data, num, rec, pl
         ax.axhspan(-2 * std, 2 * std, color="gray", alpha=.1, label="±2 std")
         ax.bar(t.exp_id + "\n" + t["trục"].str.split(" ").str[0], t["Δ macro-F1 so với T00 (mean 3 seed)"],
                color=["tab:green" if d > 0 else "tab:red" for d in t["Δ macro-F1 so với T00 (mean 3 seed)"]])
-        ax.axhline(0, color="k", lw=.8); ax.set_ylabel("Δ macro-F1 val so với T00")
+        vals = t["Δ macro-F1 so với T00 (mean 3 seed)"].to_numpy()
+        lo = -max(0.015, 4 * std)
+        ax.set_ylim(lo, max(0.02, vals.max() * 1.3))
+        for i_, v in enumerate(vals):   # cột bị cắt (trục y phóng to quanh 0) ghi giá trị thật
+            ax.text(i_, max(v, lo * 0.97) + 0.0005, f"{v:+.4f}", ha="center", fontsize=7,
+                    va="bottom", color="k")
+        ax.axhline(0, color="k", lw=.8); ax.set_ylabel("Δ macro-F1 val so với T00 (trục cắt ở dưới)")
         ax.set_title("Bước 2: ablation công thức huấn luyện (1 seed mỗi dòng) so với nhiễu seed của T00")
         ax.legend(); ax.grid(alpha=.3, axis="y")
         fig.tight_layout(); fig.savefig(fig_dir / "ablation_delta.png", dpi=120); plt.close(fig)
