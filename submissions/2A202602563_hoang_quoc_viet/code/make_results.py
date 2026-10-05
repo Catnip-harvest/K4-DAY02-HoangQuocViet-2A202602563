@@ -295,8 +295,11 @@ def main() -> None:
                       "p50 b1 (ms)": f01_p50[0] if f01_p50 else np.nan, "GMAC": np.nan,
                       "thời gian train/epoch (s)": float(np.mean([S[("F01", k)]["train_time_per_epoch_s"]
                                                                    for k in (0, 1, 2) if ("F01", k) in S]))})
-    summ = pd.DataFrame(cands).sort_values("macro-F1 val", ascending=False).head(10).reset_index(drop=True)
-    summ.insert(0, "hạng", range(1, len(summ) + 1))
+    ranked = pd.DataFrame(cands).sort_values("macro-F1 val", ascending=False).reset_index(drop=True)
+    ranked.insert(0, "hạng", range(1, len(ranked) + 1))
+    summ = ranked.head(10)
+    must = ranked[ranked["cấu hình"].str.contains("CHUNG KẾT|MỐC") & ~ranked.index.isin(summ.index)]
+    summ = pd.concat([summ, must]).reset_index(drop=True)   # luôn kèm dòng chung kết và mốc (hạng thật giữ nguyên)
     if t00:
         summ["Δ so với mốc T00 (mean)"] = summ["macro-F1 val"] - t00_mean
     summary_note = pd.DataFrame({"ghi chú": [
@@ -366,6 +369,10 @@ def format_xlsx(path, sheets):
                 if "MỐC" in str(ws.cell(r, 2).value):
                     for c in ws[r]:
                         c.fill = base_fill
+                if "CHUNG KẾT" in str(ws.cell(r, 2).value):
+                    for c in ws[r]:
+                        c.fill = best_fill
+                        c.font = Font(bold=True)
     wb.save(path)
 
 
